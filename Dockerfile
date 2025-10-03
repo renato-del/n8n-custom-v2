@@ -45,10 +45,6 @@ ENV PATH="/venv/bin:$PATH"
 RUN pip install --no-cache-dir selenium
 
 # ... (instalação do Selenium e COPIAR seus arquivos)
-
-DB_SQLITE_POOL_SIZE=1
-N8N_RUNNERS_ENABLED=true
-
 # define diretório de trabalho
 WORKDIR /app
 
@@ -62,4 +58,5 @@ USER root
 RUN chown -R node:node /app \
     && chown -R node:node /home/node
 USER node
+
 
