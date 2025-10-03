@@ -40,6 +40,8 @@ RUN python3 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 RUN pip install --no-cache-dir selenium
 
+# ... (instalação do Selenium e COPIAR seus arquivos)
+
 # define diretório de trabalho
 WORKDIR /app
 
@@ -47,5 +49,9 @@ WORKDIR /app
 COPY procurar.py /app/procurar.py
 COPY consultar.py /app/consultar.py
 
-
+# IMPORTANTE: Garante que o usuário 'node' pode acessar e escrever nos diretórios
+# O usuário 'node' é o padrão da imagem n8n.
+USER root
+RUN chown -R node:node /app \
+    && chown -R node:node /home/node
 USER node
