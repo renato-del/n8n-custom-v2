@@ -1,7 +1,7 @@
 FROM n8nio/n8n:latest
 USER root
 
-# Define as variáveis de ambiente de runtime
+# Define as variáveis de ambiente de runtime para evitar avisos
 ENV DB_SQLITE_POOL_SIZE=1
 ENV N8N_RUNNERS_ENABLED=true
 
@@ -35,16 +35,23 @@ RUN apk update && apk add --no-cache \
     glib \
     && rm -rf /var/cache/apk/*
 
-# Corrige caminhos
-ENV CHROME_BIN=/usr/bin/chromium-browser
-ENV PATH="$PATH:/usr/lib/chromium/"
+# ---------------------------------------------
+# CONFIGURAÇÕES DE CAMINHO DO CHROME/SELENIUM
+# ---------------------------------------------
 
-# Cria venv e instala selenium
+# Adiciona o venv ao PATH e instala selenium
 RUN python3 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 RUN pip install --no-cache-dir selenium
 
-# ... (instalação do Selenium e COPIAR seus arquivos)
+# Corrige caminhos e GARANTE o chromedriver no PATH
+ENV CHROME_BIN=/usr/bin/chromium
+ENV PATH="$PATH:/usr/bin/chromium-browser:/usr/bin/chromedriver" 
+
+# ---------------------------------------------
+# SETUP DA APLICAÇÃO E PERMISSÕES
+# ---------------------------------------------
+
 # define diretório de trabalho
 WORKDIR /app
 
@@ -53,10 +60,7 @@ COPY procurar.py /app/procurar.py
 COPY consultar.py /app/consultar.py
 
 # IMPORTANTE: Garante que o usuário 'node' pode acessar e escrever nos diretórios
-# O usuário 'node' é o padrão da imagem n8n.
 USER root
 RUN chown -R node:node /app \
     && chown -R node:node /home/node
 USER node
-
-
