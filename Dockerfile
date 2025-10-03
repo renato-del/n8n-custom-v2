@@ -1,6 +1,10 @@
 FROM n8nio/n8n:latest
 USER root
 
+# Define as variáveis de ambiente de runtime
+ENV DB_SQLITE_POOL_SIZE=1
+ENV N8N_RUNNERS_ENABLED=true
+
 # Instala Python e ferramentas com o gerenciador de pacotes 'apk' do Alpine Linux
 RUN apk update && apk add --no-cache \
     python3 \
@@ -42,6 +46,9 @@ RUN pip install --no-cache-dir selenium
 
 # ... (instalação do Selenium e COPIAR seus arquivos)
 
+DB_SQLITE_POOL_SIZE=1
+N8N_RUNNERS_ENABLED=true
+
 # define diretório de trabalho
 WORKDIR /app
 
@@ -55,3 +62,4 @@ USER root
 RUN chown -R node:node /app \
     && chown -R node:node /home/node
 USER node
+
