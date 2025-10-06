@@ -64,3 +64,6 @@ USER root
 RUN chown -R node:node /app \
     && chown -R node:node /home/node
 USER node
+
+ENTRYPOINT ["tini", "--", "/usr/local/bin/n8n"]
+CMD ["start"] 
