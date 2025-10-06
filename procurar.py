@@ -1,3 +1,4 @@
+import sys
 import time
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -5,8 +6,20 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
-# Nome do cliente
-nome_cliente = "Renato Barbieri"
+# ======================
+# ENTRADA DO CLIENTE VIA ARGUMENTOS
+# ======================
+# Verifica se o nome do cliente foi fornecido
+if len(sys.argv) < 2:
+    print("Uso: python nome_script.py <nome_cliente>")
+    sys.exit(1)
+
+# Junta todos os argumentos após o nome do script (ex.: "renato barbieri")
+# Isso permite nomes com espaços.
+nome_cliente = " ".join(sys.argv[1:]).strip()
+
+# O nome do cliente NÃO deve mais ser hardcoded aqui.
+# nome_cliente = "Renato Barbieri" 
 opcao_desejada = f"Contato {nome_cliente}".lower()
 
 options = Options()
@@ -98,3 +111,4 @@ finally:
         driver.quit()
     except:
         pass
+
