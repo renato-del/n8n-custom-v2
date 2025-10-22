@@ -5,7 +5,18 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+import re
+
+# Mapeamento dos seletores CSS para os blocos de conteúdo principais
+# Mantenha o seletor de histórico como o elemento PAI do bloco
+SELECTORS = {
+    "cabecalho": "div.col-xs-12.col-sm-7", 
+    "dados_processo": "[data-testid='case-view-card']:nth-of-type(1)", 
+    "historico_recente_pai": "[data-testid='case-view-card']:nth-of-type(2)", # Nome alterado para indicar que é o pai
+    "recursos": "[data-testid='case-view-card']:nth-of-type(3)",
+    "atividades": "[data-testid='case-view-card']:nth-of-type(4)" 
+}
 
 # ==============================
 # Argumento: link do processo
@@ -53,17 +64,10 @@ try:
     # Abre diretamente o link do processo
     driver.get(link_processo)
 
-    # NOVO BLOCO DE ESPERA: Aguarda que o elemento principal (case-view-react) 
-    # e seu conteúdo (o título H1) sejam carregados.
     print("Aguardando carregamento da página do processo...")
     
-    # 1. Espera pela tag principal do conteúdo
-    wait.until(EC.presence_of_element_located(
-        (By.TAG_NAME, "case-view-react")
-    ))
-    
-    # 2. Espera por um elemento específico (o título H1) para garantir que os dados dinâmicos carregaram
-    element = wait.until(EC.presence_of_element_located(
+    # Espera que o título da página do processo esteja visível
+    wait.until(EC.visibility_of_element_located(
         (By.CSS_SELECTOR, "case-view-react h1.egmhtcs0")
     ))
 
@@ -76,15 +80,76 @@ try:
     except:
         pass
     
-    # Captura texto de todo o componente React que contém as informações
-    # É mais seguro pegar o elemento pai (case-view-react) novamente, 
-    # pois ele engloba todas as informações.
-    case_view_element = driver.find_element(By.TAG_NAME, "case-view-react")
-    txt_element = case_view_element.text
+    # === INÍCIO DA NOVA LÓGICA DE EXTRAÇÃO DE TEXTO POR BLOCO ===
     
-    print("\n--- Conteúdo da Página do Processo ---\n")
-    print(txt_element)
-    print("\n--------------------------------------\n")
+    texto_completo = []
+    
+    print("Iniciando a extração de conteúdo por blocos...")
+
+    for nome_bloco, seletor in SELECTORS.items():
+        try:
+            bloco_texto = ""
+            
+            # TRATAMENTO ESPECIAL PARA O HISTÓRICO RECENTE
+            if nome_bloco == "historico_recente_pai":
+                texto_completo.append("\n\n=========================\nBLOCOS: ÚLTIMOS HISTÓRICOS\n=========================\n")
+                
+                # 1. Encontrar o elemento pai do bloco de Histórico
+                historico_pai = driver.find_element(By.CSS_SELECTOR, seletor)
+                
+                # 2. Encontrar TODOS os elementos de histórico individuais dentro do pai
+                # O seletor busca o div interno que contém o texto de cada item de histórico
+                itens_historico = historico_pai.find_elements(
+                    By.CSS_SELECTOR, 
+                    "p.css-16jdfqc-TextElement, p.css-1bij5tv-TextElement" # Os seletores de classe para os textos dos posts
+                )
+                
+                if not itens_historico:
+                    # Se não encontrar os elementos de texto específicos, tenta o seletor mais genérico:
+                    itens_genericos = historico_pai.find_elements(By.CSS_SELECTOR, "div[data-testid='card-component']")
+                    
+                    if itens_genericos:
+                        bloco_texto = "Conteúdo do histórico:\n"
+                        for item in itens_genericos:
+                            bloco_texto += f"---\n{item.text}\n"
+                    else:
+                        bloco_texto = historico_pai.text # Tenta o texto do pai como fallback
+                else:
+                    # Se encontrou os elementos de texto específicos, junta seus textos
+                    for item in itens_historico:
+                        bloco_texto += f"---\n{item.text}\n"
+
+                texto_completo.append(bloco_texto)
+
+            # TRATAMENTO PADRÃO PARA OUTROS BLOCOS
+            else:
+                element = driver.find_element(By.CSS_SELECTOR, seletor)
+                bloco_texto = element.text
+                
+                texto_completo.append(f"\n\n=========================\nBLOCOS: {nome_bloco.upper().replace('_', ' ')}\n=========================\n")
+                texto_completo.append(bloco_texto)
+
+        except NoSuchElementException:
+            # Captura a exceção se um elemento não for encontrado e informa o aviso
+            print(f"Aviso: Bloco '{nome_bloco.upper().replace('_', ' ')}' não encontrado.")
+            texto_completo.append(f"\n--- BLOCO: {nome_bloco.upper().replace('_', ' ')}: NÃO DISPONÍVEL ---")
+        except Exception as e:
+            print(f"Aviso: Erro inesperado ao extrair bloco '{nome_bloco.upper().replace('_', ' ')}': {e}")
+            texto_completo.append(f"\n--- BLOCO: {nome_bloco.upper().replace('_', ' ')}: ERRO NA EXTRAÇÃO ---")
+
+
+    # Formatar o resultado final
+    resultado_final = "".join(texto_completo)
+    
+    # Limpeza para remover espaços duplicados e quebras de linha excessivas
+    resultado_final_limpo = re.sub(r'\n\s*\n', '\n\n', resultado_final).strip()
+    
+    print("\n--- Conteúdo do Processo (Extração por Blocos) ---\n")
+    print(resultado_final_limpo)
+    print("\n------------------------------------------------\n")
+    
+    # === FIM DA LÓGICA DE EXTRAÇÃO DE TEXTO POR BLOCO ===
+
 
 except TimeoutException as e:
     # Captura TimeoutExceptions
@@ -95,8 +160,6 @@ except Exception as e:
 
 finally:
     try:
-        # Deixe o time.sleep para que você possa inspecionar a página antes de fechar
-        # Comente o 'time.sleep' quando estiver rodando em produção.
         # time.sleep(10)
         driver.quit() 
     except:
